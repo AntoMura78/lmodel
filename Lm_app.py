@@ -7,6 +7,7 @@ import statsmodels.api as sm
 import streamlit as st
 import pandas as pd
 from io import BytesIO
+import openai
 # %%
 
 
@@ -18,6 +19,21 @@ def to_excel(df):
         # Non è necessario chiamare writer.save()
     processed_data = output.getvalue()
     return processed_data
+
+openai.api_key = st.secrets["OPkey"]
+
+def askAI(domanda):
+    risposta = openai.chat.completions.create(
+        model="gpt-3.5-turbo-1106",
+        messages=[
+            {
+                "role": "user",
+                "content": domanda,
+            },
+        ],
+    )
+    resp = risposta.choices[0].message.content
+    return resp
 
 
 Generated = 0
@@ -101,13 +117,17 @@ if Input_file or Generated == 1:
                 'Seasonality (S > 1)', step=1, key=8))
         if S > 1:
             ord = (p1, d1, q1, S)
+            modelName = "SARIMA ("+str(p1)+","+str(d1) + \
+                ","+str(q1)+","+str(S)+")"
         else:
             ord = (p1, d1, q1)
+            modelName = "ARIMA ("+str(p1)+","+str(d1)+","+str(q1)+")"
         for i in range(0, Size[1]):
             if S > 1:
                 model = sm.tsa.ARIMA(Y[:, i], seasonal_order=ord)
             else:
                 model = sm.tsa.ARIMA(Y[:, i], order=ord)
+
             result = model.fit()
             Yhat[:, i] = result.predict(start=0, end=Size[0]+N)
         st.write('I parametri stimati sono: ')
@@ -144,6 +164,17 @@ if Input_file or Generated == 1:
                            data=excel_file, file_name='data.xlsx')
 
 # %%
-        stat = st.button('Show Statistics', key=12)
+        stat = st.button('Show Statistics and generate Report', key=12)
         if stat:
             st.write(result.summary())
+            Report = "Commenta il seguente report statistico di un modello di analisi di una serie temporale e fornisi suggerimenti su come proseguire" +\
+                "Si è stimato un modello "+modelName +\
+                ". Il numero di osservazioni disponibili è: " + str(result.nobs) +\
+                ". AIC = "+str(result.aic) + "BIC = " + str(result.bic) + "HQIC = " + str(result.hqic) +\
+                ". I parametri stimati sono: " + str(result.param_names) +\
+                ". I valori trovati per i parametri sono: " + str(result.params) +\
+                ". I livelli di significatività osservata sono: " + str(result.pvalues) +\
+                ". Il test sulla noermalità dei residui restituisce il seguente risultato: [Jarque-Brera (JB), Prob(JB), Skew, Kurtosis = " +\
+                str(result.test_normality(method='jarquebera'))
+            st.header("Statistical Report")
+            st.write(askAI(Report))
