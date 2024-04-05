@@ -1,4 +1,3 @@
-# %% libs
 import numpy as np
 from math import comb
 import matplotlib.pyplot as plt
@@ -20,7 +19,9 @@ def to_excel(df):
     processed_data = output.getvalue()
     return processed_data
 
+
 openai.api_key = st.secrets["OPkey"]
+
 
 def askAI(domanda):
     risposta = openai.chat.completions.create(
@@ -38,7 +39,8 @@ def askAI(domanda):
 
 Generated = 0
 with st.sidebar:
-    st.write("Genera un processo SARIMA (p,d,q,S) per testare l'applicazione")
+    st.write(
+        "Genera un processo ARIMA(p,d,q,S)xSARIMA(0,1,S) per testare l'applicazione")
     p = int(st.number_input('p', step=1, key=1))
     d = int(st.number_input('d', step=1, key=20))
     q = int(st.number_input('q', step=1, key=2))
@@ -112,19 +114,29 @@ if Input_file or Generated == 1:
             d1 = int(st.number_input('d', step=1, key=6))
         with col3:
             q1 = int(st.number_input('q', step=1, key=7))
+        ord = (p1, d1, q1)
         with col4:
             S = int(st.number_input(
                 'Seasonality (S > 1)', step=1, key=8))
         if S > 1:
-            ord = (p1, d1, q1, S)
-            modelName = "SARIMA ("+str(p1)+","+str(d1) + \
-                ","+str(q1)+","+str(S)+")"
-        else:
-            ord = (p1, d1, q1)
-            modelName = "ARIMA ("+str(p1)+","+str(d1)+","+str(q1)+")"
+            with col4:
+                col41, col42, col43 = st.columns(3)
+                with col41:
+                    ps = int(st.number_input(
+                        'ps', step=1, min_value=0, key=50))
+                with col42:
+                    ds = int(st.number_input(
+                        'ds', step=1, min_value=0, key=60))
+                with col43:
+                    qs = int(st.number_input(
+                        'qs', step=1, min_value=0, key=70))
+            Sord = (ps, ds, qs, S)
+            SmodelName = "SARIMA("+str(ps)+","+str(ds) + \
+                ","+str(qs)+","+str(S)+")"
+        modelName = "ARIMA("+str(p1)+","+str(d1)+","+str(q1)+")"
         for i in range(0, Size[1]):
             if S > 1:
-                model = sm.tsa.ARIMA(Y[:, i], seasonal_order=ord)
+                model = sm.tsa.ARIMA(Y[:, i], order=ord, seasonal_order=Sord)
             else:
                 model = sm.tsa.ARIMA(Y[:, i], order=ord)
 
@@ -168,7 +180,7 @@ if Input_file or Generated == 1:
         if stat:
             st.write(result.summary())
             Report = "Commenta il seguente report statistico di un modello di analisi di una serie temporale e fornisi suggerimenti su come proseguire" +\
-                "Si è stimato un modello "+modelName +\
+                "Si è stimato un modello "+modelName + "x" + SmodelName +\
                 ". Il numero di osservazioni disponibili è: " + str(result.nobs) +\
                 ". AIC = "+str(result.aic) + "BIC = " + str(result.bic) + "HQIC = " + str(result.hqic) +\
                 ". I parametri stimati sono: " + str(result.param_names) +\
